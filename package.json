@@ -7,7 +7,6 @@
     "start": "concurrently \"ts-node-dev index.ts\" \"ts-node src/casos/bash.ts\"",
     "config": "heroku config -a api-coronatracing",
     "log": "heroku logs -a api-coronatracing --tail",
-    "predocker-build": "tsc",
     "docker-build": "docker build -t api-coronatracing .",
     "docker-tag": "docker tag api-coronatracing registry.heroku.com/api-coronatracing/web",
     "preupload": "npm run docker-build && npm run docker-tag",
