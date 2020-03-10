@@ -1,10 +1,10 @@
 import rutas = require("./casos/routes");
 import express from "express";
-
 const app = express();
 
 app.use(rutas);
 
-app.listen(3000, () => {
-    console.log("escuchando ...");
+const port = (process.env.PORT || 3000);
+app.listen(port, () => {
+    console.log(`escuchando en puerto ... ${port}`);
 });

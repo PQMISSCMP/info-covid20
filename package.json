@@ -1,13 +1,24 @@
 {
-  "name": "api-corona",
+  "name": "info-covid20",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "index.ts",
   "scripts": {
-    "start": "concurrently \"ts-node-dev index.ts\" \"ts-node src/casos/touche.ts\""
+    "start": "concurrently \"ts-node-dev index.ts\" \"ts-node src/casos/bash.ts\"",
+    "config": "heroku config -a api-coronatracing",
+    "log": "heroku logs -a api-coronatracing --tail",
+    "predocker-build": "tsc",
+    "docker-build": "docker build -t api-coronatracing .",
+    "docker-tag": "docker tag api-coronatracing registry.heroku.com/api-coronatracing/web",
+    "preupload": "npm run docker-build && npm run docker-tag",
+    "upload": "docker push registry.heroku.com/api-coronatracing/web",
+    "postupload": "heroku container:release web -a api-coronatracing"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "covid-19",
+    "corona-virus"
+  ],
+  "author": "LFE",
   "license": "ISC",
   "dependencies": {
     "@types/express": "^4.17.2",
@@ -15,6 +26,7 @@
     "@types/mongoose": "^5.7.3",
     "axios": "^0.19.2",
     "concurrently": "^5.1.0",
+    "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "mongodb": "^3.5.4",
     "mongoose": "^5.9.2",

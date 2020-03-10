@@ -1,8 +1,7 @@
 import express from "express";
 const app = express();
 
-import { populateCases, obtenerCasoPorPais } from "./controllers";
-
+import { obtenerCasoPorPais } from "./controllers";
 
 app.get('/cases/:country', obtenerCasoPorPais);
 

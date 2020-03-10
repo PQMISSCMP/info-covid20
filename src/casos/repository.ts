@@ -1,6 +1,8 @@
 
 import mongoose from 'mongoose';
+import axios from "axios";
 
+const log = console.log;
 export interface Actualizacion {
     Lugar: string;
     Contagiados: number;
@@ -15,10 +17,13 @@ const casoVirusSchema = new mongoose.Schema({
     Actualizado: String,
 });
 
+/**
+ * @param new_caso 
+ * Ingresa una nueva actualización en MongoDB
+ */
 export const ingresaActualizacionInDB = async(new_caso: Actualizacion) => {
     try {
-        
-        const URI_MONGO = 'mongodb://heroku_hrxh1nwf:em28em9ah37s5b7ucsoqa3q2u7@ds163796.mlab.com:63796/heroku_hrxh1nwf';        
+        const URI_MONGO: string = process.env.MONGODB_URI ||'';
         await mongoose.connect(URI_MONGO, {useNewUrlParser: true, useUnifiedTopology: true} );
 
         const Caso = mongoose.model('Casos', casoVirusSchema);
@@ -38,10 +43,14 @@ export const ingresaActualizacionInDB = async(new_caso: Actualizacion) => {
     }
 }
 
-
+/**
+ * @param country
+ * Busca en MongoDB las actualizaciones ya ingresadas por un pais o lugar dado
+ */
 export const getCasoByCountryInDB = async(country: string) => {
     try {
-        const URI_MONGO = 'mongodb://heroku_hrxh1nwf:em28em9ah37s5b7ucsoqa3q2u7@ds163796.mlab.com:63796/heroku_hrxh1nwf';        
+        
+        const URI_MONGO: string = process.env.MONGODB_URI ||'';
         await mongoose.connect(URI_MONGO, {useNewUrlParser: true, useUnifiedTopology: true} );
         const Caso = mongoose.model('Casos', casoVirusSchema);
 
@@ -58,4 +67,93 @@ export const getCasoByCountryInDB = async(country: string) => {
         getCasoByCountryInDB(country);
         console.log('Error: {getCasoByCountryInDB} - ', error.message);
     }
+}
+
+
+
+let nuevosCasos: any[] = [];
+let nuevosCasosModificados: any[] = [];
+/**
+ *  Consulta una API externa (fuente descnocida) con datos actualizados del COVID y contrasta con los datos en MongoDB para saber si hay nuevos decesos o contagiados
+ */
+export const populateCases = async () => {
+    console.time();
+    log('Se inicia proceso de población de datos at ', new Date().toLocaleString() );
+    const URL_API_CORONA = process.env.URL_API_CORONA||'';
+
+    try {
+        const responseAPi = await axios.get(URL_API_CORONA);
+        
+        if (typeof responseAPi === "undefined") { throw new Error("API sin data") }
+
+        const streamData: any[] = responseAPi.data.feed.entry;
+
+        for (const item of streamData) {
+
+            const casoAPI: Actualizacion = {
+              Lugar: item.gsx$country.$t || '',
+              Contagiados: Number.parseInt(item.gsx$confirmedcases.$t.replace(',','')),
+              Decesos: item.gsx$reporteddeaths.$t === '' ? 0 : Number.parseInt(item.gsx$reporteddeaths.$t.replace(',','')),
+              Actualizado: item.updated.$t || ''
+            };
+
+            log(`Evaluamos ${casoAPI.Lugar}:`);
+            await registraSiNuevosCasos(casoAPI);
+        }
+
+        log('proceso finalizado a las ', new Date().toLocaleString());
+        log({nuevosLugaresMundo: nuevosCasos, actualizacionCasos: nuevosCasosModificados })
+        console.timeEnd();
+        return;
+
+    } catch (error) { console.log(error.message); }
+
+}
+
+
+/**
+ * 
+ * @param casoAPI 
+ * Contrasta datos de Covid con la ultima actualizacion ingresada en Mongo y pobla datos
+ */
+const registraSiNuevosCasos = async (casoAPI: Actualizacion) => {
+
+    const casosLugarInDatabase = await getCasoByCountryInDB(casoAPI.Lugar);
+
+    if ( typeof casosLugarInDatabase === "undefined" || casosLugarInDatabase.length === 0 ){
+        log(`...nuevo lugar encontrado: ${casoAPI.Lugar}`);
+        nuevosCasos = [...nuevosCasos, casoAPI.Lugar ];
+        await ingresaActualizacionInDB(casoAPI);
+        return;
+    }
+
+    let ultimaFechaActualizacion: string = casosLugarInDatabase[0].Actualizado;
+    let fechaActualizacionAPI: Date = new Date(casosLugarInDatabase[0].Actualizado);
+
+    casosLugarInDatabase.forEach(casoDB => {    
+        if (new Date(casoDB.Actualizado) > fechaActualizacionAPI ){
+            ultimaFechaActualizacion = casoDB.Actualizado;
+        }
+    });
+
+    const { Contagiados, Decesos } = casosLugarInDatabase.find(caso => caso.Actualizado === ultimaFechaActualizacion );
+    
+    if ( (casoAPI.Contagiados !== Contagiados) || (casoAPI.Decesos !== Decesos) ){
+        const contagiados = casoAPI.Contagiados !== Contagiados ? (casoAPI.Contagiados - Contagiados) : 0;
+        const decesos = casoAPI.Decesos !== Decesos ? (casoAPI.Decesos - Decesos) : 0;
+        
+        let glosa:string = '';
+        if (contagiados !== 0){
+            glosa = `+${contagiados} contagiados`;
+        }
+        if (decesos !== 0){
+            glosa = glosa.length > 0 ?  glosa + ` y +${decesos} decesos` : ` +${decesos} decesos`;
+        }
+        
+        log(`...actualizacion encontrada en: ${casoAPI.Lugar} (${glosa})`)
+        nuevosCasosModificados = [...nuevosCasosModificados, {"Lugar": casoAPI.Lugar, "Actualizacion": glosa}];
+        await ingresaActualizacionInDB(casoAPI);
+    }
+    
+    return;
 }
