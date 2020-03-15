@@ -1,8 +1,9 @@
 import express from "express";
-const app = express();
+const router = express();
 
-import { obtenerCasoPorPais } from "./controllers";
+import { obtenerCasoPorPais, listarCasos} from "./controllers";
 
-app.get('/cases/:country', obtenerCasoPorPais);
+router.get('/cases', listarCasos);
+router.get('/cases/:country', obtenerCasoPorPais);
 
-export = app;
+export = router;

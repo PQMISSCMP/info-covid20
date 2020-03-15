@@ -1,6 +1,6 @@
 
 import { Request, Response } from "express";
-import {  getCasoByCountryInDB } from "./repository";
+import {  getCasoByCountryInDB, getCases } from "./repository";
 const log = console.log;
 
 
@@ -12,6 +12,16 @@ export const obtenerCasoPorPais = async (req: Request, res: Response) => {
     } catch (error) { 
         res.status(500).json(error.message)
         log(error); 
+    }
+}
+
+
+export const listarCasos = async (req: Request, res: Response) => {
+    try {
+        const casosNoRepetidos = await getCases();
+        res.status(200).json(casosNoRepetidos);
+    } catch (error) {
+        res.status(500).send(error.messages)
     }
 }
 

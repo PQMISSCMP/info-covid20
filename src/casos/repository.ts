@@ -1,6 +1,7 @@
 
 import mongoose from 'mongoose';
 import axios from "axios";
+import nodemailer from 'nodemailer';
 
 const log = console.log;
 export interface Actualizacion {
@@ -103,6 +104,7 @@ export const populateCases = async () => {
 
         log('proceso finalizado a las ', new Date().toLocaleString());
         log({nuevosLugaresMundo: nuevosCasos, actualizacionCasos: nuevosCasosModificados })
+        if (nuevosCasos.length > 0 || nuevosCasosModificados.length > 0) enviarNotificacion({nuevosLugaresMundo: nuevosCasos, actualizacionCasos: nuevosCasosModificados });
         console.timeEnd();
         return;
 
@@ -136,6 +138,8 @@ const registraSiNuevosCasos = async (casoAPI: Actualizacion) => {
         }
     });
 
+    // casosLugarInDatabase.reduce((acc, val) => new Date(val.Actualizado) > fechaActualizacionAPI ? val.Actualizado )
+
     const { Contagiados, Decesos } = casosLugarInDatabase.find(caso => caso.Actualizado === ultimaFechaActualizacion );
     
     if ( (casoAPI.Contagiados !== Contagiados) || (casoAPI.Decesos !== Decesos) ){
@@ -156,4 +160,58 @@ const registraSiNuevosCasos = async (casoAPI: Actualizacion) => {
     }
     
     return;
+}
+
+
+const enviarNotificacion = async(result: any) => {
+    try {
+        const transporter = nodemailer.createTransport({
+            service: 'Gmail',
+            auth: {
+                user: process.env.MAIL,
+                pass: process.env.PWD
+            }
+        });
+    
+        const mailOptions = {
+            from: 'Remitente',
+            to: process.env.MAIL,
+            subject: 'Resultado actualización COVID-19',
+            text: JSON.stringify(result)
+        };
+    
+        await transporter.sendMail(mailOptions);
+        
+    } catch (error) {
+        log(error);
+    }
+
+}
+
+
+export const getCases = async() => {
+
+    try {
+        const URL_API_CORONA = process.env.URL_API_CORONA||'';
+
+        const responseAPi = await axios.get(URL_API_CORONA);
+        
+        if (typeof responseAPi === "undefined") { throw new Error("API sin data") }
+
+        const entrys: any[] = responseAPi.data.feed.entry;
+        const listaActualizaciones: Actualizacion[] = [];
+        for (const entry of entrys) {
+            const actualizacion: Actualizacion = {
+              Lugar: entry.gsx$country.$t || '',
+              Contagiados: Number.parseInt(entry.gsx$confirmedcases.$t.replace(',','')),
+              Decesos: entry.gsx$reporteddeaths.$t === '' ? 0 : Number.parseInt(entry.gsx$reporteddeaths.$t.replace(',','')),
+              Actualizado: entry.updated.$t || ''
+            };
+            listaActualizaciones.push(actualizacion);
+        }
+        return listaActualizaciones;
+    } catch (error) {
+        log(error.messages);
+        getCases();
+    }
 }
