@@ -7,5 +7,5 @@ app.use(rutas);
 
 const port = (process.env.PORT || 3000);
 app.listen(port, () => {
-    console.log(`escuchando en puerto ... ${port}`);
+    console.log(`escuchando en puerto ${port}`);
 });
