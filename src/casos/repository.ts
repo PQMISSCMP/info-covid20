@@ -1,7 +1,7 @@
 
 import mongoose from 'mongoose';
 import axios from "axios";
-import { casoVirusSchema, Actualizacion, CasosReport, casosReportSchema, ResponseListCases } from './models';
+import { casoVirusSchema, Actualizacion, casosReportSchema, ResponseListCases, PercentageModel } from './models';
 
 const log = console.log;
 
@@ -44,7 +44,6 @@ export const getCasoByCountryInDB = async(country: string) => {
 
         const first = country.substr(0,1);
         country = country.replace(first, first.toUpperCase());
-
         const result: any[] = await Caso.find({"Lugar": country});
         
         if (typeof result === "undefined") { throw new Error("Ninguna coincidencia de busqueda"); }
@@ -114,12 +113,13 @@ const registraSiNuevosCasos = async (casoAPI: Actualizacion) => {
     let ultimaFechaActualizacion: string = casosLugarInDatabase[0].Actualizado;
     let fechaActualizacionAPI: Date = new Date(casosLugarInDatabase[0].Actualizado);
 
-    casosLugarInDatabase.forEach(casoDB => {    
-        if (new Date(casoDB.Actualizado) > fechaActualizacionAPI ){
-            ultimaFechaActualizacion = casoDB.Actualizado;
-        }
-    });
+    // casosLugarInDatabase.forEach(casoDB => {    
+    //     if (new Date(casoDB.Actualizado) > fechaActualizacionAPI ){
+    //         ultimaFechaActualizacion = casoDB.Actualizado;
+    //     }
+    // });
 
+    ultimaFechaActualizacion = casosLugarInDatabase.reduce((acc, curr) => new Date(curr.Actualizado) > fechaActualizacionAPI ? curr.Actualizado : ultimaFechaActualizacion )
 
     const { Contagiados, Decesos } = casosLugarInDatabase.find(caso => caso.Actualizado === ultimaFechaActualizacion );
     
@@ -209,16 +209,17 @@ export const populateReport = async() => {
     log('--- INICIO poblacion de report ---')
     const { ...vars } = await getListCases();
     await truncateCaseReport();
-
+    // const contagiados = vars.casosAll.reduce((a, v) => a + v.Contagiados, 0);
+    // console.log(contagiados);
     vars.paises.map(async (pais) => {
         let casosReport;
         const arrayLug = vars.casosAll.filter(cas => cas.Lugar === pais);
         const { Contagiados: contagiados_1, Lugar, Decesos: Decesos_1, Actualizado } = arrayLug[arrayLug.length - 1];
         
-        if (arrayLug.length > 1 ) {  
+        if ( arrayLug.length > 1 ) {
             const { Contagiados: contagiados_2, Decesos: decesos_2, Actualizado: actAnt } = arrayLug[arrayLug.length - 2];
             const horas = Math.floor(Math.abs(new Date(Actualizado).getTime() - new Date(actAnt).getTime()) / 36e5);
-            
+
             let contagiados_3 = 0;
             let decesos_3 = 0;
             if (arrayLug.length > 2) {
@@ -227,11 +228,19 @@ export const populateReport = async() => {
                 decesos_3 = obj.Decesos;
             }
 
+            let percentages: PercentageModel[] = [];
+            arrayLug.map(caso => {
+                const percent: PercentageModel =  {
+                    Fecha: caso.Actualizado,
+                    percent: ((caso.Decesos / caso.Contagiados) * 100).toFixed(1)
+                }; percentages.push(percent);
+            });
+
             casosReport = new CasosReport({
                 lugar: Lugar,
                 totalContagiados: contagiados_1,
                 totalDecesos: Decesos_1,
-                porcent:  ((Decesos_1 / contagiados_1) * 100).toFixed(1),
+                porcent: ((Decesos_1 / contagiados_1) * 100).toFixed(1),
                 ultContagiados: (contagiados_1 - contagiados_2),
                 statusContagiados: contagiados_3 > 0 ? ((contagiados_1 - contagiados_2) > (contagiados_2 - contagiados_3)) ? 'SUBE' : 'BAJA' : '',
                 nroContagiadosAnt: contagiados_3 > 0 ? (contagiados_2 - contagiados_3) : 0,
@@ -239,15 +248,16 @@ export const populateReport = async() => {
                 statusDecesos: decesos_3 > 0 ? ((Decesos_1 - decesos_2) > (decesos_2 - decesos_3)) ? 'SUBE' : 'BAJA' : '',
                 nroDecesosAnt: decesos_3 > 0 ? (decesos_2 - decesos_3) : 0,
                 tiempoDesdeUltAct: horasToTiempoGlosa(horas),
+                percentages,
                 fechUltActualizacion: Actualizado
             });
         }
-        else{
+        else {
             casosReport = new CasosReport({
                 lugar: Lugar,
                 totalContagiados: contagiados_1,
                 totalDecesos: Decesos_1,
-                porcent:  ((Decesos_1 / contagiados_1) * 100).toFixed(1),
+                porcent: ((Decesos_1 / contagiados_1) * 100).toFixed(1),
                 ultContagiados: 0,
                 statusContagiados: 0,
                 nroContagiadosAnt: 0,
@@ -255,6 +265,7 @@ export const populateReport = async() => {
                 statusDecesos: 0,
                 nroDecesosAnt: 0,
                 tiempoDesdeUltAct: 0,
+                percentages: [],
                 fechUltActualizacion: Actualizado
             });
         }

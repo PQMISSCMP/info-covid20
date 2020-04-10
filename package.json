@@ -14,9 +14,6 @@
     "upload": "docker push registry.heroku.com/api-coronatracing/web",
     "postupload": "heroku container:release web -a api-coronatracing"
   },
-  
-
-
   "keywords": [
     "covid-19",
     "corona-virus"

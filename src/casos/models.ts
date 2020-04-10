@@ -38,6 +38,7 @@ export const casosReportSchema = new mongoose.Schema({
     nroDecesosAnt: Number,
     tiempoDesdeUltAct: String,
     fechUltActualizacion: Date,
+    percentages: Array
 });
 
 
@@ -46,4 +47,9 @@ export interface ResponseListCases {
     casosAll: any[]
 }
 
+
+export interface PercentageModel{ 
+    percent: string; 
+    Fecha: Date; 
+}
 
