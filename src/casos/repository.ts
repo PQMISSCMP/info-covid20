@@ -260,7 +260,7 @@ const datosGlobales = async() => {
 
 const calcCurvaContagiados = (casos: Actualizacion[]): CurvaContagiadosModel => {
     let curvaContagiados: number[] = [];
-    let lugar = casos[0].Lugar;
+    let lugar = casos[0].Lugar.trim();
     for ( const [idx, caso] of casos.entries() ) {
         if (idx === 0){
             curvaContagiados.push(caso.Contagiados);
@@ -283,7 +283,7 @@ export const populateReport = async() => {
 
     await truncateCaseReport();
     await truncateCollCurvas();
-    
+
     vars.paises.map(async(pais) => {
 
         let casosReport;
