@@ -1,7 +1,9 @@
 
 import mongoose from 'mongoose';
 import axios from "axios";
-import { casoVirusSchema, Actualizacion, casosReportSchema, ResponseListCases, PercentageModel } from './models';
+import { casoVirusSchema, Actualizacion, casosReportSchema, ResponseListCases, PercentageModel, CurvaContagiadosModel, curvaContagSchema } from './models';
+import { addDias } from "fechas";
+
 
 const log = console.log;
 
@@ -14,7 +16,6 @@ export const ingresaActualizacionInDB = async(new_caso: Actualizacion) => {
 
         const URI_MONGO: string = process.env.MONGODB_URI || '';
         await mongoose.connect(URI_MONGO, {useNewUrlParser: true, useUnifiedTopology: true} );
-
         const Caso = mongoose.model('Casos', casoVirusSchema);
     
         const caso = new Caso({ 
@@ -72,14 +73,15 @@ export const populateCases = async () => {
         const responseAPi = await axios.get(URL_API_CORONA);
         if (typeof responseAPi === "undefined") { throw new Error("API sin data") }
         const streamData: any[] = responseAPi.data.feed.entry;
-        for (const item of streamData) {
 
+        for (const item of streamData) {
             const casoAPI: Actualizacion = {
               Lugar: item.gsx$country.$t || '',
               Contagiados: Number.parseInt(item.gsx$confirmedcases.$t.replace(',','')),
               Decesos: item.gsx$reporteddeaths.$t === '' ? 0 : Number.parseInt(item.gsx$reporteddeaths.$t.replace(',','')),
               Actualizado: item.updated.$t || ''
             };
+
             casoAPI.Lugar.trim();
             log(`Evaluamos ${casoAPI.Lugar}:`);
             await registraSiNuevosCasos(casoAPI);
@@ -150,12 +152,39 @@ export const getCasesReport = async() => {
         await mongoose.connect(URI_MONGO, { useNewUrlParser: true, useUnifiedTopology: true } );
         const CasosReport = mongoose.model('CasosReport', casosReportSchema);
         const casosRepoty: any[] = await CasosReport.find();
+
         return casosRepoty;
     } catch (error) {
         log(error.messages);
         getCasesReport();
     }
 }
+
+
+export const geCurvaByCountryInDB = async(country: string) => {
+    try {
+        
+        const URI_MONGO: string = process.env.MONGODB_URI ||'';
+        await mongoose.connect(URI_MONGO, {useNewUrlParser: true, useUnifiedTopology: true} );
+        const CurvaContag = mongoose.model('Casos', curvaContagSchema);
+
+        const first = country.substr(0,1);
+        country = country.replace(first, first.toUpperCase());
+        const result: any[] = await CurvaContag.find({"lugar": country});
+        
+        if (typeof result === "undefined") { throw new Error("Ninguna coincidencia de busqueda"); }
+        
+        return result;
+
+    } catch (error) {
+        geCurvaByCountryInDB(country);
+        console.log('Error: {geCurvaByCountryInDB} - ', error.message);
+    }
+}
+
+
+
+
 
 const truncateCaseReport = async() => {
     try {
@@ -199,24 +228,54 @@ function horasToTiempoGlosa (hrs: number) {
     if (dias > 0 && horas > 0) return `${dias.toFixed(0)}d ${horas.toFixed(0)}h`
 }
 
+const datosGlobales = async() => {
+
+    const URL_API_CORONA = process.env.URL_API_CORONA||'';
+    const responseAPi = await axios.get(URL_API_CORONA);
+    if (typeof responseAPi === "undefined") { throw new Error("API sin data") }
+    const streamData: any[] = responseAPi.data.feed.entry;
+    
+    const totalContagiados = streamData.reduce((acc, val) => acc + Number.parseInt(val.gsx$confirmedcases.$t.replace(',','')), 0);
+    const totalDecesos = streamData.reduce((acc, val) => acc + (val.gsx$reporteddeaths.$t === '' ? 0 : Number.parseInt(val.gsx$reporteddeaths.$t.replace(',',''))), 0);
+    return { totalContagiados, totalDecesos };
+}
+
+const calcCurvaContagiados = (casos: Actualizacion[]): CurvaContagiadosModel => {
+    let curvaContagiados: number[] = [];
+    let lugar = casos[0].Lugar;
+    for ( const [idx, caso] of casos.entries() ) {
+        if (idx === 0){
+            curvaContagiados.push(caso.Contagiados);
+        } else if (caso.Contagiados !== 0) {
+            curvaContagiados.push(caso.Contagiados - casos[idx - 1].Contagiados);
+        }
+    } return {curvaContagiados, lugar};
+}
+
 
 export const populateReport = async() => {
     
     const URI_MONGO: string = process.env.MONGODB_URI || '';
     await mongoose.connect(URI_MONGO, { useNewUrlParser: true, useUnifiedTopology: true } );
     const CasosReport = mongoose.model('CasosReport', casosReportSchema);
+    const CurvaContagDB = mongoose.model('curvaContagios', curvaContagSchema);
     
     log('--- INICIO poblacion de report ---')
     const { ...vars } = await getListCases();
     await truncateCaseReport();
-    // const contagiados = vars.casosAll.reduce((a, v) => a + v.Contagiados, 0);
-    // console.log(contagiados);
-    vars.paises.map(async (pais) => {
+    
+    let curvaContagiados = {} as CurvaContagiadosModel;
+    vars.paises.map(async(pais) => {
+
         let casosReport;
-        const arrayLug = vars.casosAll.filter(cas => cas.Lugar === pais);
+        const arrayLug: Actualizacion[] = vars.casosAll.filter(cas => cas.Lugar === pais);
         const { Contagiados: contagiados_1, Lugar, Decesos: Decesos_1, Actualizado } = arrayLug[arrayLug.length - 1];
         
+        let {curvaContagiados, lugar} = calcCurvaContagiados(arrayLug);
+        const curvaContagDB = new CurvaContagDB({ lugar, curvaContagiados  });
+
         if ( arrayLug.length > 1 ) {
+
             const { Contagiados: contagiados_2, Decesos: decesos_2, Actualizado: actAnt } = arrayLug[arrayLug.length - 2];
             const horas = Math.floor(Math.abs(new Date(Actualizado).getTime() - new Date(actAnt).getTime()) / 36e5);
 
@@ -269,8 +328,11 @@ export const populateReport = async() => {
                 fechUltActualizacion: Actualizado
             });
         }
+        await curvaContagDB.save();
         await casosReport.save();
     });
+
+
     log('--- FINALIZA poblacion de report ---')
     return
 }

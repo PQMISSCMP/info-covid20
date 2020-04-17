@@ -1,6 +1,6 @@
 
 import { Request, Response } from "express";
-import {  getCasoByCountryInDB, getCasesReport, corrigeLugares2 } from "./repository";
+import {  getCasoByCountryInDB, getCasesReport, corrigeLugares2, geCurvaByCountryInDB } from "./repository";
 const log = console.log;
 
 export const obtenerCasoPorPais = async (req: Request, res: Response) => {
@@ -15,6 +15,17 @@ export const obtenerCasoPorPais = async (req: Request, res: Response) => {
     }
 }
 
+export const obtenerCurvasPais = async (req: Request, res: Response) => {
+    try {
+        const country  = req.params.country;
+        const casos = await geCurvaByCountryInDB(country);
+        res.header("Access-Control-Allow-Origin", req.headers.origin);
+        res.status(200).json(casos);
+    } catch (error) { 
+        res.status(500).json(error.message)
+        log(error); 
+    }
+}
 
 export const listarCasos = async (req: Request, res: Response) => {
     try {
