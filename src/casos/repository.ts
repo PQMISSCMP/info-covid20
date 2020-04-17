@@ -166,7 +166,7 @@ export const geCurvaByCountryInDB = async(country: string) => {
         
         const URI_MONGO: string = process.env.MONGODB_URI ||'';
         await mongoose.connect(URI_MONGO, {useNewUrlParser: true, useUnifiedTopology: true} );
-        const CurvaContag = mongoose.model('Casos', curvaContagSchema);
+        const CurvaContag = mongoose.model('curvaContagios', curvaContagSchema);
 
         const first = country.substr(0,1);
         country = country.replace(first, first.toUpperCase());
