@@ -199,8 +199,26 @@ const truncateCaseReport = async() => {
             return false;
         }
     } catch (error) {
-        log('error - {deleteManyCaseReport}')
+        log('error - {truncateCaseReport}')
         truncateCaseReport();
+    }
+}
+
+const truncateCollCurvas = async() => {
+    try {
+        const CurvaContagios = mongoose.model('curvaContagios', curvaContagSchema);
+        log('- inicia truncate de curvas...')
+        const { deletedCount } = await CurvaContagios.collection.deleteMany({});
+        if (deletedCount && deletedCount > 0) {
+            log('colletion truncada OK.')
+            return  true; 
+        }else {
+            log('problemas al truncar colletion.')
+            return false;
+        }
+    } catch (error) {
+        log('error - {truncateCollCurvas}')
+        truncateCollCurvas();
     }
 }
 
@@ -249,7 +267,7 @@ const calcCurvaContagiados = (casos: Actualizacion[]): CurvaContagiadosModel => 
         } else if (caso.Contagiados !== 0) {
             curvaContagiados.push(caso.Contagiados - casos[idx - 1].Contagiados);
         }
-    } return {curvaContagiados, lugar};
+    } return {valores: curvaContagiados, lugar};
 }
 
 
@@ -262,17 +280,18 @@ export const populateReport = async() => {
     
     log('--- INICIO poblacion de report ---')
     const { ...vars } = await getListCases();
+
     await truncateCaseReport();
+    await truncateCollCurvas();
     
-    let curvaContagiados = {} as CurvaContagiadosModel;
     vars.paises.map(async(pais) => {
 
         let casosReport;
         const arrayLug: Actualizacion[] = vars.casosAll.filter(cas => cas.Lugar === pais);
         const { Contagiados: contagiados_1, Lugar, Decesos: Decesos_1, Actualizado } = arrayLug[arrayLug.length - 1];
-        
-        let {curvaContagiados, lugar} = calcCurvaContagiados(arrayLug);
-        const curvaContagDB = new CurvaContagDB({ lugar, curvaContagiados  });
+
+        let {valores, lugar} = calcCurvaContagiados(arrayLug);
+        const curvaContagDB = new CurvaContagDB({ lugar, valores });
 
         if ( arrayLug.length > 1 ) {
 
@@ -328,8 +347,10 @@ export const populateReport = async() => {
                 fechUltActualizacion: Actualizado
             });
         }
-        await curvaContagDB.save();
+
         await casosReport.save();
+        await curvaContagDB.save();
+        
     });
 
 

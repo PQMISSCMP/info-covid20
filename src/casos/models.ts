@@ -43,7 +43,7 @@ export const casosReportSchema = new mongoose.Schema({
 
 export const curvaContagSchema = new mongoose.Schema({
     lugar: String,
-    curvaContagiados: Array
+    valores: Array
 });
 
 
@@ -62,5 +62,5 @@ export interface PercentageModel{
 
 export interface CurvaContagiadosModel {
     lugar: string;
-    curvaContagiados: number[]
+    valores: number[]
 }
