@@ -25,6 +25,14 @@ export const casoVirusSchema = new mongoose.Schema({
     Actualizado: String,
 });
 
+export const actualizacionesSchema = new mongoose.Schema({
+    Lugar: String,
+    Contagiados: Number,
+    Decesos: Number,
+    Actualizado: String,
+});
+
+
 export const casosReportSchema = new mongoose.Schema({
     lugar: String,
     totalContagiados: Number,

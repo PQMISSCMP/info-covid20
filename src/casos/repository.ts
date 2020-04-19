@@ -1,7 +1,7 @@
 
 import mongoose from 'mongoose';
 import axios from "axios";
-import { casoVirusSchema, Actualizacion, casosReportSchema, ResponseListCases, PercentageModel, CurvaContagiadosModel, curvaContagSchema } from './models';
+import { casoVirusSchema, Actualizacion, casosReportSchema, PercentageModel, CurvaContagiadosModel, curvaContagSchema, actualizacionesSchema } from './models';
 import { addDias } from "fechas";
 
 
@@ -16,7 +16,7 @@ export const ingresaActualizacionInDB = async(new_caso: Actualizacion) => {
 
         const URI_MONGO: string = process.env.MONGODB_URI || '';
         await mongoose.connect(URI_MONGO, {useNewUrlParser: true, useUnifiedTopology: true} );
-        const Caso = mongoose.model('Casos', casoVirusSchema);
+        const Caso = mongoose.model('actualizaciones', actualizacionesSchema);
     
         const caso = new Caso({ 
             Lugar: new_caso.Lugar,
@@ -41,11 +41,11 @@ export const getCasoByCountryInDB = async(country: string) => {
         
         const URI_MONGO: string = process.env.MONGODB_URI ||'';
         await mongoose.connect(URI_MONGO, {useNewUrlParser: true, useUnifiedTopology: true} );
-        const Caso = mongoose.model('Casos', casoVirusSchema);
+        const Caso = mongoose.model('actualizaciones', actualizacionesSchema);
 
         const first = country.substr(0,1);
         country = country.replace(first, first.toUpperCase());
-        const result: any[] = await Caso.find({"Lugar": country});
+        const result: any[] = await Caso.find({"Lugar": country.trim()});
         
         if (typeof result === "undefined") { throw new Error("Ninguna coincidencia de busqueda"); }
         
@@ -224,7 +224,7 @@ const truncateCollCurvas = async() => {
 
 export const getListCases = async() => {
     try {
-        const Casos = mongoose.model('Casos', casoVirusSchema);
+        const Casos = mongoose.model('actualizaciones', actualizacionesSchema);
         log('- inicia consulta de casos...')
         const casosAll: any[] = await Casos.find();
         let pses: string[] = [];
@@ -382,16 +382,29 @@ export const populateReport = async() => {
 
 
 
-export const corrigeLugares2 = async () => {
+export const getCorrigeLugares = async () => {
     try {
+        const URI_MONGO: string = process.env.MONGODB_URI || '';
+        await mongoose.connect(URI_MONGO, {useNewUrlParser: true, useUnifiedTopology: true} );
         const Casos = mongoose.model('Casos', casoVirusSchema);
+        const Actualizacion = mongoose.model('actualizaciones', actualizacionesSchema);
         log('- inicia consulta de casos...')
         const casosAll: any[] = await Casos.find();
-        let pses: string[] = [];
-        casosAll.map(x => pses.push(x.Lugar));
-        const paises = [...new Set(pses)];
-        log('consulta de casos OK.')
-        return paises;
+        log('- fin consulta de casos...')
+
+        casosAll.map(async (act) => {
+            const newActualizacion = new Actualizacion({ 
+                Lugar: act.Lugar.trim(),
+                Contagiados: act.Contagiados,
+                Decesos: act.Decesos,
+                Actualizado: act.Actualizado
+            });
+            log('insertando .. ', act.Lugar.trim());
+            await newActualizacion.save();
+
+        });
+        log('terminado: ', casosAll.length)
+        return;
     } catch (error) {
         log('error - {getListCases}')
         getListCases();

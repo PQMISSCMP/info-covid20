@@ -1,5 +1,5 @@
 require("dotenv").config();
-import { populateCases, populateReport } from "./repository";
+import { populateCases, populateReport, getCorrigeLugares } from "./repository";
 
 setInterval(async() => {
     await populateCases();
@@ -9,4 +9,6 @@ setInterval(async() => {
 (async _ => {
     await populateCases();
     await populateReport();
+    // await getCorrigeLugares();
+
 })();
