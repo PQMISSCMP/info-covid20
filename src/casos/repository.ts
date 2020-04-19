@@ -258,16 +258,36 @@ const datosGlobales = async() => {
     return { totalContagiados, totalDecesos };
 }
 
-const calcCurvaContagiados = (casos: Actualizacion[]): CurvaContagiadosModel => {
-    let curvaContagiados: number[] = [];
-    let lugar = casos[0].Lugar.trim();
+const calcCurvaContagiados = (casos: Actualizacion[]): CurvaContagiadosModel[] => {
+    // let curvaContagiados: number[] = [];
+    // let lugar = casos[0].Lugar.trim();
+    // for ( const [idx, caso] of casos.entries() ) {
+    //     if (idx === 0){
+    //         curvaContagiados.push(caso.Contagiados);
+    //     } else if (caso.Contagiados !== 0) {
+    //         curvaContagiados.push(caso.Contagiados - casos[idx - 1].Contagiados);
+    //     }
+    // } return {valores: curvaContagiados, lugar};
+
+    let listaDiferencias: CurvaContagiadosModel[] = [];
+    let curvaContagiosPorDia: CurvaContagiadosModel[] = [];
+    const fechasInformadas = casos.map(data => new Date(data.Actualizado).toISOString().slice(0,10).replace(/[-]/g, '/'));
+    const fechasInformadasPorDia = [...new Set(fechasInformadas)];
     for ( const [idx, caso] of casos.entries() ) {
+        const fechaCorta = new Date(caso.Actualizado).toISOString().slice(0,10).replace(/[-]/g, '/');
         if (idx === 0){
-            curvaContagiados.push(caso.Contagiados);
+            listaDiferencias.push({nroContagios: caso.Contagiados, fecha: fechaCorta});
         } else if (caso.Contagiados !== 0) {
-            curvaContagiados.push(caso.Contagiados - casos[idx - 1].Contagiados);
+            listaDiferencias.push({nroContagios: caso.Contagiados - casos[idx - 1].Contagiados, fecha: fechaCorta});
         }
-    } return {valores: curvaContagiados, lugar};
+    }
+    fechasInformadasPorDia.map(fecha => {
+        const nroContagios = listaDiferencias.filter(filtrados => filtrados.fecha === fecha).reduce((acc, val) => acc + val.nroContagios, 0);
+        curvaContagiosPorDia.push({nroContagios, fecha});
+    });
+
+    return curvaContagiosPorDia;
+
 }
 
 
@@ -281,8 +301,10 @@ export const populateReport = async() => {
     log('--- INICIO poblacion de report ---')
     const { ...vars } = await getListCases();
 
-    await truncateCaseReport();
-    await truncateCollCurvas();
+    if ( vars.paises.length >= 0 && vars.casosAll.length >= 0 ) {
+        await truncateCaseReport();
+        await truncateCollCurvas();
+    }
 
     vars.paises.map(async(pais) => {
 
@@ -290,8 +312,8 @@ export const populateReport = async() => {
         const arrayLug: Actualizacion[] = vars.casosAll.filter(cas => cas.Lugar === pais);
         const { Contagiados: contagiados_1, Lugar, Decesos: Decesos_1, Actualizado } = arrayLug[arrayLug.length - 1];
 
-        let {valores, lugar} = calcCurvaContagiados(arrayLug);
-        const curvaContagDB = new CurvaContagDB({ lugar, valores });
+        let contagiadosPorDia = calcCurvaContagiados(arrayLug);
+        const curvaContagDB = new CurvaContagDB({ valores: contagiadosPorDia, lugar: pais.trim() });
 
         if ( arrayLug.length > 1 ) {
 

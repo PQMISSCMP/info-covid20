@@ -7,6 +7,6 @@ setInterval(async() => {
 }, 60 * 60000);
 
 (async _ => {
-    await populateCases();
+    // await populateCases();
     await populateReport();
 })();

@@ -61,6 +61,6 @@ export interface PercentageModel{
 
 
 export interface CurvaContagiadosModel {
-    lugar: string;
-    valores: number[]
+    nroContagios: number;
+    fecha: string;
 }
