@@ -225,7 +225,7 @@ export const getListCases = async() => {
         log('- inicia consulta de casos...')
         const casosAll: any[] = await Casos.find();
         let pses: string[] = [];
-        casosAll.map(x => pses.push(x.Lugar));
+        casosAll.map(x => pses.push(x.Lugar.trim()));
         const paises = [...new Set(pses)];
         log('consulta de casos OK.')
         return { paises , casosAll };
