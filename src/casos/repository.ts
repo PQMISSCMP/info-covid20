@@ -171,7 +171,6 @@ export const geCurvaByCountryInDB = async(country: string) => {
         const first = country.substr(0,1);
         country = country.replace(first, first.toUpperCase());
         const result: any[] = await CurvaContag.find({"lugar": country});
-        log(result);
         if (typeof result === "undefined") { throw new Error("Ninguna coincidencia de busqueda"); }
         return result;
     } catch (error) {
@@ -350,7 +349,7 @@ export const populateReport = async() => {
             });
 
             casosReport = new CasosReport({
-                lugar: Lugar,
+                lugar: Lugar.trim(),
                 totalContagiados: contagiados_1,
                 totalDecesos: Decesos_1,
                 porcent: ((Decesos_1 / contagiados_1) * 100).toFixed(1),
@@ -367,7 +366,7 @@ export const populateReport = async() => {
         }
         else {
             casosReport = new CasosReport({
-                lugar: Lugar,
+                lugar: Lugar.trim(),
                 totalContagiados: contagiados_1,
                 totalDecesos: Decesos_1,
                 porcent: ((Decesos_1 / contagiados_1) * 100).toFixed(1),
