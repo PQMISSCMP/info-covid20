@@ -1,7 +1,7 @@
 
 import mongoose from 'mongoose';
 import axios from "axios";
-import { casoVirusSchema, Actualizacion, casosReportSchema, PercentageModel, CurvaContagiadosModel, curvaContagSchema, actualizacionesSchema } from './models';
+import { casoVirusSchema, Actualizacion, casosReportSchema, PercentageModel, CurvaPaisModel, curvasSchema, actualizacionesSchema } from './models';
 import { addDias } from "fechas";
 
 
@@ -166,16 +166,14 @@ export const geCurvaByCountryInDB = async(country: string) => {
         
         const URI_MONGO: string = process.env.MONGODB_URI ||'';
         await mongoose.connect(URI_MONGO, {useNewUrlParser: true, useUnifiedTopology: true} );
-        const CurvaContag = mongoose.model('curvaContagios', curvaContagSchema);
+        const CurvaContag = mongoose.model('datos_curvas', curvasSchema);
 
         const first = country.substr(0,1);
         country = country.replace(first, first.toUpperCase());
         const result: any[] = await CurvaContag.find({"lugar": country});
-        
+        log(result);
         if (typeof result === "undefined") { throw new Error("Ninguna coincidencia de busqueda"); }
-        
         return result;
-
     } catch (error) {
         geCurvaByCountryInDB(country);
         console.log('Error: {geCurvaByCountryInDB} - ', error.message);
@@ -206,7 +204,7 @@ const truncateCaseReport = async() => {
 
 const truncateCollCurvas = async() => {
     try {
-        const CurvaContagios = mongoose.model('curvaContagios', curvaContagSchema);
+        const CurvaContagios = mongoose.model('datos_curvas', curvasSchema);
         log('- inicia truncate de curvas...')
         const { deletedCount } = await CurvaContagios.collection.deleteMany({});
         if (deletedCount && deletedCount > 0) {
@@ -246,47 +244,61 @@ function horasToTiempoGlosa (hrs: number) {
     if (dias > 0 && horas > 0) return `${dias.toFixed(0)}d ${horas.toFixed(0)}h`
 }
 
-const datosGlobales = async() => {
+// const datosGlobales = async() => {
 
-    const URL_API_CORONA = process.env.URL_API_CORONA||'';
-    const responseAPi = await axios.get(URL_API_CORONA);
-    if (typeof responseAPi === "undefined") { throw new Error("API sin data") }
-    const streamData: any[] = responseAPi.data.feed.entry;
+//     const URL_API_CORONA = process.env.URL_API_CORONA||'';
+//     const responseAPi = await axios.get(URL_API_CORONA);
+//     if (typeof responseAPi === "undefined") { throw new Error("API sin data") }
+//     const streamData: any[] = responseAPi.data.feed.entry;
     
-    const totalContagiados = streamData.reduce((acc, val) => acc + Number.parseInt(val.gsx$confirmedcases.$t.replace(',','')), 0);
-    const totalDecesos = streamData.reduce((acc, val) => acc + (val.gsx$reporteddeaths.$t === '' ? 0 : Number.parseInt(val.gsx$reporteddeaths.$t.replace(',',''))), 0);
-    return { totalContagiados, totalDecesos };
-}
+//     const totalContagiados = streamData.reduce((acc, val) => acc + Number.parseInt(val.gsx$confirmedcases.$t.replace(',','')), 0);
+//     const totalDecesos = streamData.reduce((acc, val) => acc + (val.gsx$reporteddeaths.$t === '' ? 0 : Number.parseInt(val.gsx$reporteddeaths.$t.replace(',',''))), 0);
+//     return { totalContagiados, totalDecesos };
+// }
 
-const calcCurvaContagiados = (casos: Actualizacion[]): CurvaContagiadosModel[] => {
-    // let curvaContagiados: number[] = [];
-    // let lugar = casos[0].Lugar.trim();
-    // for ( const [idx, caso] of casos.entries() ) {
-    //     if (idx === 0){
-    //         curvaContagiados.push(caso.Contagiados);
-    //     } else if (caso.Contagiados !== 0) {
-    //         curvaContagiados.push(caso.Contagiados - casos[idx - 1].Contagiados);
-    //     }
-    // } return {valores: curvaContagiados, lugar};
+const calcCurvaContagiados = (casos: Actualizacion[]): CurvaPaisModel[] => {
 
-    let listaDiferencias: CurvaContagiadosModel[] = [];
-    let curvaContagiosPorDia: CurvaContagiadosModel[] = [];
+    let listaDiferencias: CurvaPaisModel[] = [];
+    let curvaContagiosPorDia: CurvaPaisModel[] = [];
     const fechasInformadas = casos.map(data => new Date(data.Actualizado).toISOString().slice(0,10).replace(/[-]/g, '/'));
     const fechasInformadasPorDia = [...new Set(fechasInformadas)];
     for ( const [idx, caso] of casos.entries() ) {
         const fechaCorta = new Date(caso.Actualizado).toISOString().slice(0,10).replace(/[-]/g, '/');
         if (idx === 0){
-            listaDiferencias.push({nroContagios: caso.Contagiados, fecha: fechaCorta});
+            listaDiferencias.push({valor: caso.Contagiados, fecha: fechaCorta});
         } else if (caso.Contagiados !== 0) {
-            listaDiferencias.push({nroContagios: caso.Contagiados - casos[idx - 1].Contagiados, fecha: fechaCorta});
+            listaDiferencias.push({valor: caso.Contagiados - casos[idx - 1].Contagiados, fecha: fechaCorta});
         }
     }
     fechasInformadasPorDia.map(fecha => {
-        const nroContagios = listaDiferencias.filter(filtrados => filtrados.fecha === fecha).reduce((acc, val) => acc + val.nroContagios, 0);
-        curvaContagiosPorDia.push({nroContagios, fecha});
+        const nroContagios = listaDiferencias.filter(filtrados => filtrados.fecha === fecha).reduce((acc, val) => acc + val.valor, 0);
+        curvaContagiosPorDia.push({valor: nroContagios, fecha});
     });
 
     return curvaContagiosPorDia;
+
+}
+
+const calcCurvaDecesos = (casos: Actualizacion[]): CurvaPaisModel[] => {
+
+    let listaDiferencias: CurvaPaisModel[] = [];
+    let curvaDecesosPorDia: CurvaPaisModel[] = [];
+    const fechasInformadas = casos.map(data => new Date(data.Actualizado).toISOString().slice(0,10).replace(/[-]/g, '/'));
+    const fechasInformadasPorDia = [...new Set(fechasInformadas)];
+    for ( const [idx, caso] of casos.entries() ) {
+        const fechaCorta = new Date(caso.Actualizado).toISOString().slice(0,10).replace(/[-]/g, '/');
+        if (idx === 0){
+            listaDiferencias.push({valor: caso.Decesos, fecha: fechaCorta});
+        } else if (caso.Decesos !== 0) {
+            listaDiferencias.push({valor: caso.Decesos - casos[idx - 1].Decesos, fecha: fechaCorta});
+        }
+    }
+    fechasInformadasPorDia.map(fecha => {
+        const nroDecesos = listaDiferencias.filter(filtrados => filtrados.fecha === fecha).reduce((acc, val) => acc + val.valor, 0);
+        curvaDecesosPorDia.push({valor: nroDecesos, fecha});
+    });
+
+    return curvaDecesosPorDia;
 
 }
 
@@ -296,24 +308,26 @@ export const populateReport = async() => {
     const URI_MONGO: string = process.env.MONGODB_URI || '';
     await mongoose.connect(URI_MONGO, { useNewUrlParser: true, useUnifiedTopology: true } );
     const CasosReport = mongoose.model('CasosReport', casosReportSchema);
-    const CurvaContagDB = mongoose.model('curvaContagios', curvaContagSchema);
+    const Curvas = mongoose.model('datos_curvas', curvasSchema);
     
     log('--- INICIO poblacion de report ---')
     const { ...vars } = await getListCases();
 
     if ( vars.paises.length >= 0 && vars.casosAll.length >= 0 ) {
         await truncateCaseReport();
-        await truncateCollCurvas();
-    }
+        await truncateCollCurvas(); }
 
+    // const curvaContagPromise: Promise<any>;
     vars.paises.map(async(pais) => {
 
         let casosReport;
         const arrayLug: Actualizacion[] = vars.casosAll.filter(cas => cas.Lugar === pais);
         const { Contagiados: contagiados_1, Lugar, Decesos: Decesos_1, Actualizado } = arrayLug[arrayLug.length - 1];
 
-        let contagiadosPorDia = calcCurvaContagiados(arrayLug);
-        const curvaContagDB = new CurvaContagDB({ valores: contagiadosPorDia, lugar: pais.trim() });
+        const curvaContagDB = new Curvas({ 
+            lugar: pais.trim(),
+            curvaContagios: calcCurvaContagiados(arrayLug),
+            curvaDecesos: calcCurvaDecesos(arrayLug) });
 
         if ( arrayLug.length > 1 ) {
 
@@ -325,8 +339,7 @@ export const populateReport = async() => {
             if (arrayLug.length > 2) {
                 const obj = arrayLug[arrayLug.length - 3];
                 contagiados_3 = obj.Contagiados;
-                decesos_3 = obj.Decesos;
-            }
+                decesos_3 = obj.Decesos; }
 
             let percentages: PercentageModel[] = [];
             arrayLug.map(caso => {
@@ -369,7 +382,6 @@ export const populateReport = async() => {
                 fechUltActualizacion: Actualizado
             });
         }
-
         await casosReport.save();
         await curvaContagDB.save();
         
@@ -410,3 +422,5 @@ export const getCorrigeLugares = async () => {
         getListCases();
     }
 }
+
+

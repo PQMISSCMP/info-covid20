@@ -18,9 +18,9 @@ export const obtenerCasoPorPais = async (req: Request, res: Response) => {
 export const obtenerCurvasPais = async (req: Request, res: Response) => {
     try {
         const country  = req.params.country;
-        const casos = await geCurvaByCountryInDB(country);
+        const datosCurvas = await geCurvaByCountryInDB(country);
         res.header("Access-Control-Allow-Origin", req.headers.origin);
-        res.status(200).json(casos);
+        res.status(200).json(datosCurvas);
     } catch (error) { 
         res.status(500).json(error.message)
         log(error); 
