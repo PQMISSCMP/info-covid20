@@ -263,9 +263,7 @@ const calcCurvaContagiados = (casos: Actualizacion[]): CurvaPaisModel[] => {
     const fechasInformadasPorDia = [...new Set(fechasInformadas)];
     for ( const [idx, caso] of casos.entries() ) {
         const fechaCorta = new Date(caso.Actualizado).toISOString().slice(0,10).replace(/[-]/g, '/');
-        if (idx === 0){
-            listaDiferencias.push({valor: caso.Contagiados, fecha: fechaCorta});
-        } else if (caso.Contagiados !== 0) {
+        if (idx > 0) {
             listaDiferencias.push({valor: caso.Contagiados - casos[idx - 1].Contagiados, fecha: fechaCorta});
         }
     }
@@ -286,9 +284,7 @@ const calcCurvaDecesos = (casos: Actualizacion[]): CurvaPaisModel[] => {
     const fechasInformadasPorDia = [...new Set(fechasInformadas)];
     for ( const [idx, caso] of casos.entries() ) {
         const fechaCorta = new Date(caso.Actualizado).toISOString().slice(0,10).replace(/[-]/g, '/');
-        if (idx === 0){
-            listaDiferencias.push({valor: caso.Decesos, fecha: fechaCorta});
-        } else if (caso.Decesos !== 0) {
+        if (idx > 0) {
             listaDiferencias.push({valor: caso.Decesos - casos[idx - 1].Decesos, fecha: fechaCorta});
         }
     }
