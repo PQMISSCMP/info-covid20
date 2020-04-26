@@ -9,7 +9,4 @@ setInterval(async() => {
 (async _ => {
     await populateCases();
     await populateReport();
-
-    // await getCorrigeLugares();
-
 })();

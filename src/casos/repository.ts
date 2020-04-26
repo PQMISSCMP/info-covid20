@@ -29,7 +29,6 @@ export const populateCases = async () => {
                 Actualizado: item.updated.$t || ''
             };
 
-            casoAPI.Lugar.trim();
             log(`Evaluamos ${casoAPI.Lugar}:`);
             await registraSiNuevosCasos(casoAPI);
         }
@@ -59,12 +58,7 @@ const registraSiNuevosCasos = async (casoAPI: Actualizacion) => {
         return;
     }
 
-    let ultimaFechaActualizacion: string = casosLugarInDatabase[0].Actualizado;
-    let fechaActualizacionAPI: Date = new Date(casosLugarInDatabase[0].Actualizado);
-
-    ultimaFechaActualizacion = casosLugarInDatabase.reduce((acc, curr) => new Date(curr.Actualizado) > fechaActualizacionAPI ? curr.Actualizado : ultimaFechaActualizacion)
-
-    const { Contagiados, Decesos } = casosLugarInDatabase.find(caso => caso.Actualizado === ultimaFechaActualizacion);
+    const { Contagiados, Decesos } = casosLugarInDatabase.sort((a, b) => +new Date(a.Actualizado) - +new Date(b.Actualizado)).slice(-1)[0];
 
     if ((casoAPI.Contagiados !== Contagiados) || (casoAPI.Decesos !== Decesos)) {
         const contagiados = casoAPI.Contagiados !== Contagiados ? (casoAPI.Contagiados - Contagiados) : 0;
@@ -98,7 +92,7 @@ export const getCasoByCountryInDB = async (country: string) => {
         await mongoose.connect(URI_MONGO, { useNewUrlParser: true, useUnifiedTopology: true });
         const Caso = mongoose.model('actualizaciones', actualizacionesSchema);
 
-        country = country.charAt(0).toUpperCase() + country.slice(1);
+        country = (country.charAt(0).toUpperCase() + country.slice(1)).trim();
         const result: any[] = await Caso.find({ Lugar: { $in: [country.concat(' '), country.trim()] } });
 
         if (typeof result === "undefined") { throw new Error("Ninguna coincidencia de busqueda"); }
@@ -125,7 +119,7 @@ export const ingresaActualizacionInDB = async (new_caso: Actualizacion) => {
         const Caso = mongoose.model('actualizaciones', actualizacionesSchema);
 
         const caso = new Caso({
-            Lugar: new_caso.Lugar,
+            Lugar: new_caso.Lugar.trim(),
             Contagiados: new_caso.Contagiados,
             Decesos: new_caso.Decesos,
             Actualizado: new_caso.Actualizado
@@ -162,10 +156,11 @@ export const geCurvaByCountryInDB = async (country: string) => {
         await mongoose.connect(URI_MONGO, { useNewUrlParser: true, useUnifiedTopology: true });
         const CurvaContag = mongoose.model('datos_curvas', curvasSchema);
 
-        const first = country.substr(0, 1);
-        country = country.replace(first, first.toUpperCase());
-        const result: any[] = await CurvaContag.find({ "lugar": country });
+        country = (country.charAt(0).toUpperCase() + country.slice(1)).trim();
+        const result: any[] = await CurvaContag.find({ Lugar: { $in: [country.concat(' '), country.trim()] } });
+
         if (typeof result === "undefined") { throw new Error("Ninguna coincidencia de busqueda"); }
+
         return result;
     } catch (error) {
         geCurvaByCountryInDB(country);
