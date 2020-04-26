@@ -27,7 +27,7 @@ export const obtenerCurvasPais = async (req: Request, res: Response) => {
     }
 }
 
-export const listarCasos = async (req: Request, res: Response) => {
+export const listarReport = async (req: Request, res: Response) => {
     try {
         res.header("Access-Control-Allow-Origin", req.headers.origin);
         const casosReporte = await getCasesReport();
