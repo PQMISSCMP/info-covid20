@@ -45,14 +45,14 @@ export const casosReportSchema = new mongoose.Schema({
     statusDecesos: String,
     nroDecesosAnt: Number,
     tiempoDesdeUltAct: String,
-    fechUltActualizacion: Date,
-    percentages: Array
+    fechUltActualizacion: Date
 });
 
 export const curvasSchema = new mongoose.Schema({
     lugar: String,
     curvaContagios: Array,
-    curvaDecesos: Array
+    curvaDecesos: Array,
+    curvaPorcentajes: Array
 });
 
 

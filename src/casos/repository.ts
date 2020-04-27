@@ -138,7 +138,7 @@ export const getCasesReport = async () => {
     try {
         const URI_MONGO: string = process.env.MONGODB_URI || '';
         await mongoose.connect(URI_MONGO, { useNewUrlParser: true, useUnifiedTopology: true });
-        const CasosReport = mongoose.model('CasosReport', casosReportSchema);
+        const CasosReport = mongoose.model('casosreport', casosReportSchema);
         const casosRepoty: any[] = await CasosReport.find();
 
         return casosRepoty;
@@ -171,7 +171,7 @@ export const geCurvaByCountryInDB = async (country: string) => {
 
 const truncateCaseReport = async () => {
     try {
-        const CasosReport = mongoose.model('CasosReport', casosReportSchema);
+        const CasosReport = mongoose.model('casosreport', casosReportSchema);
         log('- inicia truncate de casos-report...')
         const { deletedCount } = await CasosReport.collection.deleteMany({});
         if (deletedCount && deletedCount > 0) {
@@ -268,15 +268,24 @@ const calcCurvaDecesos = (casos: Actualizacion[]): CurvaPaisModel[] => {
     });
 
     return curvaDecesosPorDia;
-
 }
 
+const calcCurvaProcentajes = (casos: Actualizacion[]) => {
+    let percentages: PercentageModel[] = [];
+    casos.map(caso => {
+        const percent: PercentageModel = {
+            Fecha: caso.Actualizado,
+            percent: ((caso.Decesos / caso.Contagiados) * 100).toFixed(1)
+        }; 
+        percentages.push(percent);
+    });
+}
 
 export const populateReport = async () => {
     try {
         const URI_MONGO: string = process.env.MONGODB_URI || '';
         await mongoose.connect(URI_MONGO, { useNewUrlParser: true, useUnifiedTopology: true });
-        const CasosReport = mongoose.model('CasosReport', casosReportSchema);
+        const CasosReport = mongoose.model('casosreport', casosReportSchema);
         const Curvas = mongoose.model('datos_curvas', curvasSchema);
 
         log('--- INICIO poblacion de report ---')
@@ -293,10 +302,11 @@ export const populateReport = async () => {
             const arrayLug: Actualizacion[] = vars.casosAll.filter(cas => cas.Lugar.trim() === pais);
             const { Contagiados: contagiados_1, Lugar, Decesos: Decesos_1, Actualizado } = arrayLug[arrayLug.length - 1];
 
-            const curvaContagDB = new Curvas({
+            const curvaDatos = new Curvas({
                 lugar: pais.trim(),
                 curvaContagios: calcCurvaContagiados(arrayLug),
-                curvaDecesos: calcCurvaDecesos(arrayLug)
+                curvaDecesos: calcCurvaDecesos(arrayLug),
+                curvaPorcentajes: calcCurvaProcentajes(arrayLug)
             });
 
             if (arrayLug.length > 1) {
@@ -312,13 +322,6 @@ export const populateReport = async () => {
                     decesos_3 = obj.Decesos;
                 }
 
-                let percentages: PercentageModel[] = [];
-                arrayLug.map(caso => {
-                    const percent: PercentageModel = {
-                        Fecha: caso.Actualizado,
-                        percent: ((caso.Decesos / caso.Contagiados) * 100).toFixed(1)
-                    }; percentages.push(percent);
-                });
 
                 casosReport = new CasosReport({
                     lugar: Lugar.trim(),
@@ -332,7 +335,6 @@ export const populateReport = async () => {
                     statusDecesos: decesos_3 > 0 ? ((Decesos_1 - decesos_2) > (decesos_2 - decesos_3)) ? 'SUBE' : 'BAJA' : '',
                     nroDecesosAnt: decesos_3 > 0 ? (decesos_2 - decesos_3) : 0,
                     tiempoDesdeUltAct: horasToTiempoGlosa(horas),
-                    percentages,
                     fechUltActualizacion: Actualizado
                 });
             }
@@ -349,12 +351,11 @@ export const populateReport = async () => {
                     statusDecesos: 0,
                     nroDecesosAnt: 0,
                     tiempoDesdeUltAct: 0,
-                    percentages: [],
                     fechUltActualizacion: Actualizado
                 });
             }
             await casosReport.save();
-            await curvaContagDB.save();
+            await curvaDatos.save();
         });
 
         const listadoReporte = await getCasesReport();
