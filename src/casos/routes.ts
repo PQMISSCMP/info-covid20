@@ -5,6 +5,6 @@ import { obtenerCasoPorPais, listarReport, obtenerCurvasPais} from "./controller
 
 router.get('/cases', listarReport);
 router.get('/cases/:country', obtenerCasoPorPais);
-router.get('/report/:country', obtenerCurvasPais);
+router.get('/resumes/:country', obtenerCurvasPais);
 
 export = router;
