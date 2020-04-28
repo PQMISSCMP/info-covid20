@@ -159,7 +159,7 @@ export const geCurvaByCountryInDB = async (country: string) => {
         const Curvas = mongoose.model(COLLECTION_CURVAS, curvasSchema);
 
         country = (country.charAt(0).toUpperCase() + country.slice(1)).trim();
-        const result: any[] = await Curvas.find({ Lugar: { $in: [country.concat(' '), country.trim()] } });
+        const result: any[] = await Curvas.find({ lugar: { $in: [country.concat(' '), country.trim()] } });
 
         if (typeof result === "undefined") { throw new Error("Ninguna coincidencia de busqueda"); }
 
