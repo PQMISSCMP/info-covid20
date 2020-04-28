@@ -1,10 +1,12 @@
 
 import mongoose from 'mongoose';
 import axios from "axios";
-import { casoVirusSchema, Actualizacion, casosReportSchema, PercentageModel, CurvaPaisModel, curvasSchema, actualizacionesSchema } from './models';
+import { Actualizacion, casosReportSchema, PercentageModel, 
+    CurvaPaisModel, curvasSchema, actualizacionesSchema, COLLECTION_RESUMES,
+     COLLECTION_CURVAS, COLLECTION_ACTUALIZACIONES } 
+from './models';
 
 const log = console.log;
-
 
 let nuevosCasos: any[] = [];
 let nuevosCasosModificados: any[] = [];
@@ -90,7 +92,7 @@ export const getCasoByCountryInDB = async (country: string) => {
 
         const URI_MONGO: string = process.env.MONGODB_URI || '';
         await mongoose.connect(URI_MONGO, { useNewUrlParser: true, useUnifiedTopology: true });
-        const Caso = mongoose.model('actualizaciones', actualizacionesSchema);
+        const Caso = mongoose.model(COLLECTION_ACTUALIZACIONES, actualizacionesSchema);
 
         country = (country.charAt(0).toUpperCase() + country.slice(1)).trim();
         const result: any[] = await Caso.find({ Lugar: { $in: [country.concat(' '), country.trim()] } });
@@ -116,7 +118,7 @@ export const ingresaActualizacionInDB = async (new_caso: Actualizacion) => {
 
         const URI_MONGO: string = process.env.MONGODB_URI || '';
         await mongoose.connect(URI_MONGO, { useNewUrlParser: true, useUnifiedTopology: true });
-        const Caso = mongoose.model('actualizaciones', actualizacionesSchema);
+        const Caso = mongoose.model(COLLECTION_ACTUALIZACIONES, actualizacionesSchema);
 
         const caso = new Caso({
             Lugar: new_caso.Lugar.trim(),
@@ -138,7 +140,7 @@ export const getCasesReport = async () => {
     try {
         const URI_MONGO: string = process.env.MONGODB_URI || '';
         await mongoose.connect(URI_MONGO, { useNewUrlParser: true, useUnifiedTopology: true });
-        const CasosReport = mongoose.model('casosreport', casosReportSchema);
+        const CasosReport = mongoose.model(COLLECTION_RESUMES, casosReportSchema);
         const casosRepoty: any[] = await CasosReport.find();
 
         return casosRepoty;
@@ -154,7 +156,7 @@ export const geCurvaByCountryInDB = async (country: string) => {
 
         const URI_MONGO: string = process.env.MONGODB_URI || '';
         await mongoose.connect(URI_MONGO, { useNewUrlParser: true, useUnifiedTopology: true });
-        const CurvaContag = mongoose.model('datos_curvas', curvasSchema);
+        const CurvaContag = mongoose.model(COLLECTION_CURVAS, curvasSchema);
 
         country = (country.charAt(0).toUpperCase() + country.slice(1)).trim();
         const result: any[] = await CurvaContag.find({ Lugar: { $in: [country.concat(' '), country.trim()] } });
@@ -171,7 +173,7 @@ export const geCurvaByCountryInDB = async (country: string) => {
 
 const truncateCaseReport = async () => {
     try {
-        const CasosReport = mongoose.model('casosreport', casosReportSchema);
+        const CasosReport = mongoose.model(COLLECTION_RESUMES, casosReportSchema);
         log('- inicia truncate de casos-report...')
         const { deletedCount } = await CasosReport.collection.deleteMany({});
         if (deletedCount && deletedCount > 0) {
@@ -189,7 +191,7 @@ const truncateCaseReport = async () => {
 
 const truncateCollCurvas = async () => {
     try {
-        const CurvaContagios = mongoose.model('datos_curvas', curvasSchema);
+        const CurvaContagios = mongoose.model(COLLECTION_CURVAS, curvasSchema);
         log('- inicia truncate de curvas...')
         const { deletedCount } = await CurvaContagios.collection.deleteMany({});
         if (deletedCount && deletedCount > 0) {
@@ -207,7 +209,7 @@ const truncateCollCurvas = async () => {
 
 export const getListCases = async () => {
     try {
-        const Casos = mongoose.model('actualizaciones', actualizacionesSchema);
+        const Casos = mongoose.model(COLLECTION_ACTUALIZACIONES, actualizacionesSchema);
         log('- inicia consulta de casos...')
         const casosAll: any[] = await Casos.find();
         let pses: string[] = [];
@@ -270,7 +272,7 @@ const calcCurvaDecesos = (casos: Actualizacion[]): CurvaPaisModel[] => {
     return curvaDecesosPorDia;
 }
 
-const calcCurvaProcentajes = (casos: Actualizacion[]) => {
+const calcCurvaPorcentajes = (casos: Actualizacion[]) => {
     let percentages: PercentageModel[] = [];
     casos.map(caso => {
         const percent: PercentageModel = {
@@ -279,14 +281,15 @@ const calcCurvaProcentajes = (casos: Actualizacion[]) => {
         }; 
         percentages.push(percent);
     });
+    return percentages;
 }
 
 export const populateReport = async () => {
     try {
         const URI_MONGO: string = process.env.MONGODB_URI || '';
         await mongoose.connect(URI_MONGO, { useNewUrlParser: true, useUnifiedTopology: true });
-        const CasosReport = mongoose.model('casosreport', casosReportSchema);
-        const Curvas = mongoose.model('datos_curvas', curvasSchema);
+        const CasosReport = mongoose.model(COLLECTION_RESUMES, casosReportSchema);
+        const Curvas = mongoose.model(COLLECTION_CURVAS, curvasSchema);
 
         log('--- INICIO poblacion de report ---')
         const { ...vars } = await getListCases();
@@ -306,8 +309,9 @@ export const populateReport = async () => {
                 lugar: pais.trim(),
                 curvaContagios: calcCurvaContagiados(arrayLug),
                 curvaDecesos: calcCurvaDecesos(arrayLug),
-                curvaPorcentajes: calcCurvaProcentajes(arrayLug)
+                curvaPorcentajes: calcCurvaPorcentajes(arrayLug)
             });
+
 
             if (arrayLug.length > 1) {
 
@@ -321,7 +325,6 @@ export const populateReport = async () => {
                     contagiados_3 = obj.Contagiados;
                     decesos_3 = obj.Decesos;
                 }
-
 
                 casosReport = new CasosReport({
                     lugar: Lugar.trim(),
@@ -375,33 +378,33 @@ export const populateReport = async () => {
 
 
 
-export const getCorrigeLugares = async () => {
-    try {
-        const URI_MONGO: string = process.env.MONGODB_URI || '';
-        await mongoose.connect(URI_MONGO, { useNewUrlParser: true, useUnifiedTopology: true });
-        const Casos = mongoose.model('Casos', casoVirusSchema);
-        const Actualizacion = mongoose.model('actualizaciones', actualizacionesSchema);
-        log('- inicia consulta de casos...')
-        const casosAll: any[] = await Casos.find();
-        log('- fin consulta de casos...')
+// export const getCorrigeLugares = async () => {
+//     try {
+//         const URI_MONGO: string = process.env.MONGODB_URI || '';
+//         await mongoose.connect(URI_MONGO, { useNewUrlParser: true, useUnifiedTopology: true });
+//         const Casos = mongoose.model('Casos', casoVirusSchema);
+//         const Actualizacion = mongoose.model(COLLECTION_ACTUALIZACIONES, actualizacionesSchema);
+//         log('- inicia consulta de casos...')
+//         const casosAll: any[] = await Casos.find();
+//         log('- fin consulta de casos...')
 
-        casosAll.map(async (act) => {
-            const newActualizacion = new Actualizacion({
-                Lugar: act.Lugar.trim(),
-                Contagiados: act.Contagiados,
-                Decesos: act.Decesos,
-                Actualizado: act.Actualizado
-            });
-            log('insertando .. ', act.Lugar.trim());
-            await newActualizacion.save();
+//         casosAll.map(async (act) => {
+//             const newActualizacion = new Actualizacion({
+//                 Lugar: act.Lugar.trim(),
+//                 Contagiados: act.Contagiados,
+//                 Decesos: act.Decesos,
+//                 Actualizado: act.Actualizado
+//             });
+//             log('insertando .. ', act.Lugar.trim());
+//             await newActualizacion.save();
 
-        });
-        log('terminado: ', casosAll.length)
-        return;
-    } catch (error) {
-        log('error - {getListCases}')
-        getListCases();
-    }
-}
+//         });
+//         log('terminado: ', casosAll.length)
+//         return;
+//     } catch (error) {
+//         log('error - {getListCases}')
+//         getListCases();
+//     }
+// }
 
 
