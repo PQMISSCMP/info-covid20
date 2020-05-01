@@ -26,8 +26,8 @@ export const populateCases = async () => {
         for (const item of streamData) {
             const casoAPI: Actualizacion = {
                 Lugar: item.gsx$country.$t || '',
-                Contagiados: Number.parseInt(item.gsx$confirmedcases.$t.replace(',', '')),
-                Decesos: item.gsx$reporteddeaths.$t === '' ? 0 : Number.parseInt(item.gsx$reporteddeaths.$t.replace(',', '')),
+                Contagiados: Number.parseInt(item.gsx$confirmedcases.$t.replace(/[,]/g, '')),
+                Decesos: item.gsx$reporteddeaths.$t === '' ? 0 : Number.parseInt(item.gsx$reporteddeaths.$t.replace(/[,]/g, '')),
                 Actualizado: item.updated.$t || ''
             };
 
