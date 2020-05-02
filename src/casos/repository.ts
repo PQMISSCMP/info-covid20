@@ -60,7 +60,8 @@ const registraSiNuevosCasos = async (casoAPI: Actualizacion) => {
         return;
     }
 
-    const { Contagiados, Decesos } = casosLugarInDatabase.sort((a, b) => +new Date(a.Actualizado) - +new Date(b.Actualizado)).slice(-1)[0];
+    // const { Contagiados, Decesos } = casosLugarInDatabase.sort((a, b) => +new Date(a.Actualizado) - +new Date(b.Actualizado)).slice(-1)[0];
+    const { Contagiados, Decesos } = casosLugarInDatabase.slice(-1)[0];
 
     if ((casoAPI.Contagiados !== Contagiados) || (casoAPI.Decesos !== Decesos)) {
         const contagiados = casoAPI.Contagiados !== Contagiados ? (casoAPI.Contagiados - Contagiados) : 0;
