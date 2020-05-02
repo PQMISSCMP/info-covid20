@@ -273,11 +273,11 @@ const calcCurvaDecesos = (casos: Actualizacion[]): CurvaPaisModel[] => {
 }
 
 const calcCurvaPorcentajes = (casos: Actualizacion[]) => {
-    let percentages: PercentageModel[] = [];
+    let percentages: CurvaPaisModel[] = [];
     casos.map(caso => {
-        const percent: PercentageModel = {
-            Fecha: caso.Actualizado,
-            percent: ((caso.Decesos / caso.Contagiados) * 100).toFixed(1)
+        const percent: CurvaPaisModel = {
+            fecha: caso.Actualizado.toString(),
+            valor: Number.parseFloat(((caso.Decesos / caso.Contagiados) * 100).toFixed(1))
         }; 
         percentages.push(percent);
     });
