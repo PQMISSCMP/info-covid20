@@ -297,6 +297,9 @@ export const populateReport = async () => {
             await truncateCollCurvas();
         }
 
+        console.time('casos_resume');
+        let arrayPromisesResumes: Promise<any>[]=[];
+        let arrayPromisesCurvas: Promise<any>[]=[];
         vars.paises.map(async (pais) => {
 
             let casosReport;
@@ -357,7 +360,17 @@ export const populateReport = async () => {
             }
             await casosReport.save();
             await curvaDatos.save();
+
+            // arrayPromisesResumes.push(casosReport.save());
+            // arrayPromisesCurvas.push(curvaDatos.save());
+
         });
+
+        // await Promise.all(arrayPromisesResumes);
+        // await Promise.all(arrayPromisesCurvas);
+
+        console.timeEnd('casos_resume');
+
 
         const listadoReporte = await getCasesReport();
         if (listadoReporte?.length === 0) {
