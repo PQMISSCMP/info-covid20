@@ -1,6 +1,7 @@
 
 import mongoose from 'mongoose';
 import axios from "axios";
+import colors from "colors";
 import { Actualizacion, casosReportSchema, PercentageModel, 
     CurvaPaisModel, curvasSchema, actualizacionesSchema, COLLECTION_RESUMES,
      COLLECTION_CURVAS, COLLECTION_ACTUALIZACIONES } 
@@ -39,7 +40,7 @@ export const populateCases = async () => {
         log({ nuevosLugaresMundo: nuevosCasos, actualizacionCasos: nuevosCasosModificados })
         return;
 
-    } catch (error) { console.log(error.message); }
+    } catch (error) { console.log(colors.red(error.message)); }
 }
 
 
@@ -104,7 +105,7 @@ export const getCasoByCountryInDB = async (country: string) => {
 
     } catch (error) {
         getCasoByCountryInDB(country);
-        console.log('Error: {getCasoByCountryInDB} - ', error.message);
+        console.log(colors.red('Error: {getCasoByCountryInDB} - '), error.message);
     }
 }
 
@@ -129,7 +130,7 @@ export const ingresaActualizacionInDB = async (new_caso: Actualizacion) => {
         });
         await caso.save();
     } catch (error) {
-        console.log("Error: {ingresaActualizacionInDB} - ", error.message);
+        console.log(colors.red("Error: {ingresaActualizacionInDB} - "), error.message);
         ingresaActualizacionInDB(new_caso);
     }
 }
@@ -146,7 +147,7 @@ export const getCasesReport = async () => {
 
         return casosRepoty;
     } catch (error) {
-        log(error.messages);
+        log(colors.red(error.messages));
         getCasesReport();
     }
 }
@@ -167,7 +168,7 @@ export const geCurvaByCountryInDB = async (country: string) => {
         return result;
     } catch (error) {
         geCurvaByCountryInDB(country);
-        console.log('Error: {geCurvaByCountryInDB} - ', error.message);
+        console.log(colors.red('Error: {geCurvaByCountryInDB} - '), error.message);
     }
 }
 
@@ -179,13 +180,11 @@ const truncateCaseReport = async () => {
         const { deletedCount } = await CasosReport.collection.deleteMany({});
         if (deletedCount && deletedCount > 0) {
             log('colletion truncada OK.')
-            return true;
         } else {
-            log('problemas al truncar colletion.')
-            return false;
+            log(colors.red('problemas al truncar colletion casosReport.'));
         }
     } catch (error) {
-        log('error - {truncateCaseReport}: ', error.message)
+        log(colors.red('error - {truncateCaseReport}: '), error.message)
         truncateCaseReport();
     }
 }
@@ -197,13 +196,11 @@ const truncateCollCurvas = async () => {
         const { deletedCount } = await CurvaContagios.collection.deleteMany({});
         if (deletedCount && deletedCount > 0) {
             log('colletion truncada OK.')
-            return true;
         } else {
-            log('problemas al truncar colletion.')
-            return false;
+            log(colors.red('problemas al truncar colletion curvas.'))
         }
     } catch (error) {
-        log('error - {truncateCollCurvas}: ', error.message)
+        log(colors.red('error - {truncateCollCurvas}: '), error.message)
         truncateCollCurvas();
     }
 }
@@ -211,15 +208,15 @@ const truncateCollCurvas = async () => {
 export const getListCases = async () => {
     try {
         const Casos = mongoose.model(COLLECTION_ACTUALIZACIONES, actualizacionesSchema);
-        log('- inicia consulta de casos...')
+        log(colors.blue.bgWhite('- inicia consulta de casos...'));
         const casosAll: any[] = await Casos.find();
         let pses: string[] = [];
         casosAll.map(x => pses.push(x.Lugar.trim()));
         const paises = [...new Set(pses)];
-        log('consulta de casos OK.')
+        log('consulta de casos OK.');
         return { paises, casosAll };
     } catch (error) {
-        log('error - {getListCases}: ', error.message)
+        log(colors.red('error - {getListCases}: '), error.message)
         getListCases();
     }
 }
@@ -364,7 +361,7 @@ export const populateReport = async () => {
 
         const listadoReporte = await getCasesReport();
         if (listadoReporte?.length === 0) {
-            log('ocurrio un error y no se guardaron report');
+            log(colors.red('ocurrio un error y no se guardaron report'));
             populateReport();
         }
 
@@ -372,7 +369,7 @@ export const populateReport = async () => {
         return
 
     } catch (error) {
-        log('error en populate: ', error)
+        log(colors.red('error en populate: '), error)
     }
 
 }
